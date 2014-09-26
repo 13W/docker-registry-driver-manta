@@ -18,7 +18,8 @@ from manta import PrivateKeySigner, MantaClient
 class Storage(driver.Base):
     def __init__(self, path=None, config=None):
         self.config = config
-        self.signer = PrivateKeySigner(key_id=config.key_id, priv_key=config.private_key)
+        self.signer = PrivateKeySigner(key_id=config.key_id,
+                                       priv_key=open(config.private_key).read())
         self.client = MantaClient(config.url, config.account, self.signer,
                                         disable_ssl_certificate_validation=config.insecure,
                                         cache_dir='/tmp')

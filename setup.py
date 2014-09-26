@@ -1,8 +1,8 @@
 from distutils.core import setup
 
 setup(
-    name='docker-registry-driver-manta',
-    version='0.0.1',
+    name='docker-registry-driver-joyent_manta',
+    version='0.0.3',
     author='Vladimir Bulyga',
     author_email='xx@ccxx.cc',
     packages=['docker_registry', 'docker_registry.drivers'],
@@ -12,4 +12,5 @@ setup(
     license='LICENSE.txt',
     description='Docker registry manta driver',
     long_description=open('README.md').read(),
+    install_requires=open('./requirements.txt').read()
 )
