@@ -23,6 +23,7 @@ class Storage(driver.Base):
         self.client = MantaClient(config.url, config.account, self.signer,
                                         disable_ssl_certificate_validation=config.insecure,
                                         cache_dir='/tmp')
+        self.client.mkdirp(self.create_manta_path(config.path))
 
     def create_manta_path(self, path=None):
         if path is None:
