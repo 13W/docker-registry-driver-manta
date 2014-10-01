@@ -16,7 +16,7 @@ from manta import PrivateKeySigner, MantaClient
 
 
 class Storage(driver.Base):
-    def __init__(self, config=None):
+    def __init__(self, path=None, config=None):
         self.config = config
 
         self.signer = PrivateKeySigner(key_id=config.key_id,
