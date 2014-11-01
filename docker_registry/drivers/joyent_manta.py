@@ -22,7 +22,12 @@ class Storage(driver.Base):
         self.signer = PrivateKeySigner(key_id=config.key_id,
                                        priv_key=open(config.private_key).read())
 
-        self.client = MantaClient(config.url, config.account, self.signer,
+        account = config.account
+
+        if type(config.subuser) is str and len(config.subuser) > 0:
+            account += '/' + config.subuser
+
+        self.client = MantaClient(config.url, account, self.signer,
                                   disable_ssl_certificate_validation=config.insecure,
                                   cache_dir='/tmp')
 

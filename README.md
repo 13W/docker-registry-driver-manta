@@ -14,6 +14,7 @@ joyent_manta: &joyent_manta
     key_id: _env:MANTA_KEY_ID
     private_key: _env:MANTA_PRIVATE_KEY
     account: _env:MANTA_USER
+    subuser: _env:MANTA_SUBUSER
 ```
 
 or append env variables to docker-registry startup script
