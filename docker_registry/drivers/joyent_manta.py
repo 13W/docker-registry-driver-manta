@@ -38,10 +38,11 @@ class Storage(driver.Base):
         if len(mpath) == 0:
             return
 
-        parts = mpath.split('/')
-        mpath = '/'.join(parts[0: 3])
+        defaultpath = self.create_manta_path().split('/')
+        parts = mpath.split('/')[len(defaultpath)-1:]
+        mpath = '/'.join(defaultpath[:-1])
 
-        for part in parts[3:]:
+        for part in parts:
             mpath += '/' + part
             self.client.put_directory(mpath)
 
