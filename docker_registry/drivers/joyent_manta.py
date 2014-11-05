@@ -10,6 +10,9 @@ This is a manta based driver.
 from docker_registry.core import driver
 from docker_registry.core import exceptions
 from docker_registry.core import lru
+
+import base64
+import hashlib
 import os
 
 from manta import PrivateKeySigner, MantaClient
@@ -33,6 +36,59 @@ class Storage(driver.Base):
 
         self.mkdirp(self.create_manta_path())
 
+    def put_object(self, mpath, content=None, path=None, file=None,
+                   content_length=None,
+                   content_type="application/octet-stream",
+                   durability_level=None):
+
+        headers = {
+            "Content-Type": content_type,
+        }
+
+        if type(self.config.role_tags) is str and len(self.config.subuser) > 0:
+            headers["role-tag"] = self.config.role_tags
+            headers["role"] = self.config.role_tags
+
+        if durability_level:
+            headers["x-durability-level"] = durability_level
+
+        methods = [m for m in [content, path, file] if m is not None]
+        if len(methods) != 1:
+            raise self.client.errors.MantaError("exactly one of 'content', 'path' or "
+                "'file' must be provided")
+        if content is not None:
+            pass
+        elif path:
+            f = open(path)
+            try:
+                content = f.read()
+            finally:
+                f.close()
+        else:
+            content = file.read()
+        if not isinstance(content, bytes):
+            raise self.client.errors.MantaError("'content' must be bytes, not unicode")
+
+        headers["Content-Length"] = str(len(content))
+        md5 = hashlib.md5(content)
+        headers["Content-MD5"] = base64.b64encode(md5.digest())
+        res, content = self.client._request(mpath, "PUT", body=content,
+                                     headers=headers)
+        if res["status"] != "204":
+            raise self.client.errors.MantaAPIError(res, content)
+
+    def put_directory(self, mdir):
+        headers = {
+            "Content-Type": "application/json; type=directory"
+        }
+        if type(self.config.role_tags) is str and len(self.config.subuser) > 0:
+            headers["role-tag"] = self.config.role_tags
+            headers["role"] = self.config.role_tags
+
+        res, content = self.client._request(mdir, "PUT", headers=headers)
+        if res["status"] != "204":
+            raise self.client.errors.MantaAPIError(res, content)
+
     def mkdirp(self, mpath):
 
         if len(mpath) == 0:
@@ -44,7 +100,7 @@ class Storage(driver.Base):
 
         for part in parts:
             mpath += '/' + part
-            self.client.put_directory(mpath)
+            self.put_directory(mpath)
 
     def create_manta_path(self, path=None):
         if path is None:
@@ -67,7 +123,7 @@ class Storage(driver.Base):
 
         mpath = self.create_manta_path(path)
         self.mkdirp(os.path.dirname(mpath))
-        self.client.put_object(mpath, content=content, content_type='text/plain')
+        self.put_object(mpath, content=content, content_type='text/plain')
 
     def exists(self, path):
         mpath = self.create_manta_path(path)
@@ -77,7 +133,7 @@ class Storage(driver.Base):
     def stream_write(self, path, fp):
         mpath = self.create_manta_path(path)
         self.mkdirp(os.path.dirname(mpath))
-        self.client.put_object(mpath, file=fp)
+        self.put_object(mpath, file=fp)
 
     def stream_read(self, path, bytes_range=None):
         mpath = self.create_manta_path(path)
