@@ -15,7 +15,7 @@ import base64
 import hashlib
 import os
 
-from manta import PrivateKeySigner, MantaClient
+from manta import PrivateKeySigner, MantaClient, errors
 
 
 class Storage(driver.Base):
@@ -54,7 +54,7 @@ class Storage(driver.Base):
 
         methods = [m for m in [content, path, file] if m is not None]
         if len(methods) != 1:
-            raise self.client.errors.MantaError("exactly one of 'content', 'path' or "
+            raise errors.MantaError("exactly one of 'content', 'path' or "
                 "'file' must be provided")
         if content is not None:
             pass
@@ -67,7 +67,7 @@ class Storage(driver.Base):
         else:
             content = file.read()
         if not isinstance(content, bytes):
-            raise self.client.errors.MantaError("'content' must be bytes, not unicode")
+            raise errors.MantaError("'content' must be bytes, not unicode")
 
         headers["Content-Length"] = str(len(content))
         md5 = hashlib.md5(content)
@@ -75,7 +75,7 @@ class Storage(driver.Base):
         res, content = self.client._request(mpath, "PUT", body=content,
                                      headers=headers)
         if res["status"] != "204":
-            raise self.client.errors.MantaAPIError(res, content)
+            raise errors.MantaAPIError(res, content)
 
     def put_directory(self, mdir):
         headers = {
@@ -87,7 +87,7 @@ class Storage(driver.Base):
 
         res, content = self.client._request(mdir, "PUT", headers=headers)
         if res["status"] != "204":
-            raise self.client.errors.MantaAPIError(res, content)
+            raise errors.MantaAPIError(res, content)
 
     def mkdirp(self, mpath):
 
@@ -112,7 +112,7 @@ class Storage(driver.Base):
         mpath = self.create_manta_path(path)
 
         try:
-            return self.client.get_object(mpath)
+            return self.get_object(mpath)
         except Exception:
             raise exceptions.FileNotFoundError("File %s not found" % path)
 
@@ -127,8 +127,40 @@ class Storage(driver.Base):
 
     def exists(self, path):
         mpath = self.create_manta_path(path)
-        res, status = self.client._request(path=mpath, method='HEAD')
+        res, content = self.client._request(path=mpath, method='HEAD')
         return str(res.status) != '404'
+
+    def get_object(self, mpath, accept="*/*"):
+        headers = {
+            "cache-control": "no-cache",
+            "Accept": accept
+        }
+
+        res, content = self.client._request(mpath, "GET", headers=headers)
+
+        if res["status"] not in ("200", "304"):
+            raise errors.MantaAPIError(res, content)
+
+        if len(content) != int(res["content-length"]):
+            raise errors.MantaError("content-length mismatch: expected %d, "
+                "got %s" % (int(res["content-length"]), content))
+
+        if res.get("content-md5"):
+            md5 = hashlib.md5(content)
+            content_md5 = base64.b64encode(md5.digest())
+            if content_md5 != res["content-md5"]:
+                raise errors.MantaError("content-md5 mismatch: expected %s, "
+                    "got %s" % (res["content-md5"], content_md5))
+
+        return content
+
+    def get_size(self, path):
+        mpath = self.create_manta_path(path)
+        headers = {
+            'cache-control': 'no-cache'
+        }
+        res, content = self.client._request(path=mpath, method='HEAD', headers=headers)
+        return int(res["content-length"])
 
     def stream_write(self, path, fp):
         mpath = self.create_manta_path(path)
@@ -137,7 +169,7 @@ class Storage(driver.Base):
 
     def stream_read(self, path, bytes_range=None):
         mpath = self.create_manta_path(path)
-        return self.client.get_object(mpath)
+        return self.get_object(mpath)
 
     def list_directory(self, path):
         mpath = self.create_manta_path(path)
