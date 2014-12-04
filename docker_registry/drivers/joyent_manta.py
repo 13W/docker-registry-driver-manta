@@ -11,6 +11,7 @@ from docker_registry.core import driver
 from docker_registry.core import exceptions
 from docker_registry.core import lru
 
+import json
 import base64
 import hashlib
 import os
@@ -184,10 +185,41 @@ class Storage(driver.Base):
 
         return files
 
+    def remove_images(self, name):
+        mpath = self.create_manta_path(name)
+        images = self.get_object(mpath + '/_index_images')
+        images = json.loads(images)
+        if len(images) == 0:
+            return
+
+        for image in images:
+            self.remove(self.create_manta_path('images/%s' % str(image['id'])))
+
     @lru.remove
     def remove(self, path):
+        splitted = [p for p in path.split('/') if p]
+        if splitted[0] == 'repositories' and len(splitted) == 3:
+            self.remove_images(path)
+
         mpath = self.create_manta_path(path)
-        self.client.delete_object(mpath)
+        type = self.client.type(mpath)
+
+        if type != 'directory':
+            return self.client.delete_object(mpath)
+
+        files = self.client.list_directory(mpath)
+        for entry in files:
+            name = mpath + '/' + entry['name']
+            if entry['type'] == 'directory':
+                try:
+                    self.client.delete_directory(name)
+                except Exception:
+                    files += self.client.list_directory(name)
+                    files += [name]
+            else:
+                self.client.delete_object(name)
+        else:
+            return self.client.delete_directory(mpath)
 
     def content_redirect_url(self, path):
         return self.config.url + path

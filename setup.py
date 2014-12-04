@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='docker-registry-driver-joyent_manta',
-    version='0.0.16',
+    version='0.0.18',
     author='Vladimir Bulyga',
     author_email='xx@ccxx.cc',
     packages=['docker_registry', 'docker_registry.drivers'],
