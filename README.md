@@ -15,6 +15,7 @@ joyent_manta: &joyent_manta
     private_key: _env:MANTA_PRIVATE_KEY
     account: _env:MANTA_USER
     subuser: _env:MANTA_SUBUSER
+    remove_images: _env:REMOVE_IMAGES:False
 ```
 
 or append env variables to docker-registry startup script

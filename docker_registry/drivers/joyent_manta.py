@@ -198,7 +198,7 @@ class Storage(driver.Base):
     @lru.remove
     def remove(self, path):
         splitted = [p for p in path.split('/') if p]
-        if splitted[0] == 'repositories' and len(splitted) == 3:
+        if self.config.remove_images and splitted[0] == 'repositories' and len(splitted) == 3:
             self.remove_images(path)
 
         mpath = self.create_manta_path(path)
